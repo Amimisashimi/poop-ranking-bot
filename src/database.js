@@ -104,28 +104,41 @@ function undoPoop(userId, guildId) {
 }
 
 /**
+ * Parse UK date components reliably using Intl (avoids DD/MM vs MM/DD ambiguity).
+ */
+function getUKDateParts() {
+  const now = new Date();
+  const fmt = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: 'numeric', second: 'numeric',
+    hour12: false,
+  });
+  const parts = {};
+  for (const { type, value } of fmt.formatToParts(now)) {
+    if (type !== 'literal') parts[type] = parseInt(value, 10);
+  }
+  return parts; // { year, month, day, hour, minute, second }
+}
+
+/**
  * Helper: get UK time "now" and compute the start of the current ISO week (Monday).
  */
 function getWeekStartUK() {
-  const now = new Date();
-  const ukStr = now.toLocaleString('en-GB', { timeZone: 'Europe/London' });
-  const ukNow = new Date(ukStr);
-  const day = ukNow.getDay(); // 0=Sun, 1=Mon, ...
-  const diff = day === 0 ? 6 : day - 1; // Days since Monday
-  const monday = new Date(ukNow);
-  monday.setDate(ukNow.getDate() - diff);
-  monday.setHours(0, 0, 0, 0);
-  return monday.toISOString().slice(0, 19).replace('T', ' ');
+  const uk = getUKDateParts();
+  const d = new Date(Date.UTC(uk.year, uk.month - 1, uk.day));
+  const dow = d.getUTCDay(); // 0=Sun, 1=Mon, ...
+  const diff = dow === 0 ? 6 : dow - 1;
+  d.setUTCDate(d.getUTCDate() - diff);
+  return d.toISOString().slice(0, 19).replace('T', ' ');
 }
 
 /**
  * Helper: get UK time "now" and compute the start of the current month.
  */
 function getMonthStartUK() {
-  const now = new Date();
-  const ukStr = now.toLocaleString('en-GB', { timeZone: 'Europe/London' });
-  const ukNow = new Date(ukStr);
-  const monthStart = new Date(ukNow.getFullYear(), ukNow.getMonth(), 1);
+  const uk = getUKDateParts();
+  const monthStart = new Date(Date.UTC(uk.year, uk.month - 1, 1));
   return monthStart.toISOString().slice(0, 19).replace('T', ' ');
 }
 
