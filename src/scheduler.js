@@ -58,11 +58,16 @@ async function postMonthlyAnnouncement(client) {
       const winner = entries[0];
       const totalPoops = entries.reduce((sum, e) => sum + e.count, 0);
 
+      // Award 10,000 Angel Coins to the monthly winner
+      const MONTHLY_PRIZE = 10000;
+      db.addCoins(winner.user_id, guild.id, MONTHLY_PRIZE);
+
       const embed = new MessageEmbed()
         .setColor('#FFD700')
         .setTitle(`🏆💩 MONTHLY POOP CHAMPIONSHIP — ${monthName} ${year} 💩🏆`)
         .setDescription(leaderboardText)
         .addField('🎉 Champion', `Congratulations to <@${winner.user_id}> for the healthiest gut this month!`, false)
+        .addField('👼 Prize', `<@${winner.user_id}> wins **${MONTHLY_PRIZE.toLocaleString()}** Angel Coins! 🪙`, false)
         .addField('📊 Server Total', `**${totalPoops}** poops logged this month by **${entries.length}** members`, false)
         .setFooter({ text: 'New month, new competition! Keep logging with +poop' })
         .setTimestamp();

@@ -50,6 +50,17 @@ async function initDatabase() {
     );
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS angel_coins (
+      user_id TEXT NOT NULL,
+      guild_id TEXT NOT NULL,
+      balance INTEGER DEFAULT 500,
+      last_daily DATETIME DEFAULT NULL,
+      last_rob DATETIME DEFAULT NULL,
+      PRIMARY KEY (user_id, guild_id)
+    );
+  `);
+
   // Save to persist the schema
   saveDatabase();
 
@@ -250,7 +261,10 @@ function getUserStats(userId, guildId) {
   );
   const weeklyRank = rankRows.length + 1;
 
-  return { weeklyCount, monthlyCount, allTimeCount, weeklyRank };
+  // Get coin balance
+  const coinBalance = getBalance(userId, guildId);
+
+  return { weeklyCount, monthlyCount, allTimeCount, weeklyRank, coinBalance };
 }
 
 /**
@@ -282,6 +296,144 @@ function resetAllPoops(guildId) {
   return changes;
 }
 
+// ============================================================
+// Angel Coins Economy
+// ============================================================
+
+const STARTING_BALANCE = 500;
+const DAILY_AMOUNT = 500;
+const DAILY_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const ROB_COOLDOWN_MS = 3 * 60 * 60 * 1000; // 3 hours
+
+/**
+ * Ensure a user has an account row (creates one with starting balance if missing).
+ */
+function ensureAccount(userId, guildId) {
+  const existing = queryOne(
+    `SELECT balance FROM angel_coins WHERE user_id = ? AND guild_id = ?`,
+    [userId, guildId]
+  );
+  if (!existing) {
+    db.run(
+      `INSERT INTO angel_coins (user_id, guild_id, balance) VALUES (?, ?, ?)`,
+      [userId, guildId, STARTING_BALANCE]
+    );
+    saveDatabase();
+  }
+}
+
+/**
+ * Get a user's coin balance.
+ */
+function getBalance(userId, guildId) {
+  ensureAccount(userId, guildId);
+  return queryOne(
+    `SELECT balance FROM angel_coins WHERE user_id = ? AND guild_id = ?`,
+    [userId, guildId]
+  ).balance;
+}
+
+/**
+ * Add (or deduct) coins from a user's balance.
+ * @returns {number} The user's new balance
+ */
+function addCoins(userId, guildId, amount) {
+  ensureAccount(userId, guildId);
+  db.run(
+    `UPDATE angel_coins SET balance = balance + ? WHERE user_id = ? AND guild_id = ?`,
+    [amount, userId, guildId]
+  );
+  saveDatabase();
+  return getBalance(userId, guildId);
+}
+
+/**
+ * Transfer coins from one user to another.
+ * @returns {{ success: boolean, error?: string, senderBalance?: number, receiverBalance?: number }}
+ */
+function transferCoins(fromId, toId, guildId, amount) {
+  if (fromId === toId) return { success: false, error: 'You can\'t transfer coins to yourself!' };
+  if (amount <= 0) return { success: false, error: 'Amount must be greater than 0!' };
+
+  const senderBal = getBalance(fromId, guildId);
+  if (senderBal < amount) return { success: false, error: `You only have **${senderBal.toLocaleString()}** Angel Coins!` };
+
+  const senderNew = addCoins(fromId, guildId, -amount);
+  const receiverNew = addCoins(toId, guildId, amount);
+  return { success: true, senderBalance: senderNew, receiverBalance: receiverNew };
+}
+
+/**
+ * Claim daily coins.
+ * @returns {{ success: boolean, newBalance?: number, nextClaim?: Date }}
+ */
+function claimDaily(userId, guildId) {
+  ensureAccount(userId, guildId);
+  const row = queryOne(
+    `SELECT last_daily FROM angel_coins WHERE user_id = ? AND guild_id = ?`,
+    [userId, guildId]
+  );
+
+  if (row.last_daily) {
+    const lastClaim = new Date(row.last_daily + 'Z'); // stored as UTC
+    const nextClaim = new Date(lastClaim.getTime() + DAILY_COOLDOWN_MS);
+    if (Date.now() < nextClaim.getTime()) {
+      return { success: false, nextClaim };
+    }
+  }
+
+  // Grant coins and update timestamp
+  db.run(
+    `UPDATE angel_coins SET balance = balance + ?, last_daily = datetime('now') WHERE user_id = ? AND guild_id = ?`,
+    [DAILY_AMOUNT, userId, guildId]
+  );
+  saveDatabase();
+  const newBalance = getBalance(userId, guildId);
+  return { success: true, newBalance };
+}
+
+/**
+ * Get the Angel Coins leaderboard.
+ */
+function getCoinLeaderboard(guildId, limit = 10) {
+  return queryAll(
+    `SELECT user_id, balance FROM angel_coins WHERE guild_id = ? AND balance > 0 ORDER BY balance DESC LIMIT ?`,
+    [guildId, limit]
+  );
+}
+
+/**
+ * Check if a user can rob (3hr cooldown).
+ * @returns {{ canRob: boolean, nextRob?: Date }}
+ */
+function checkRobCooldown(userId, guildId) {
+  ensureAccount(userId, guildId);
+  const row = queryOne(
+    `SELECT last_rob FROM angel_coins WHERE user_id = ? AND guild_id = ?`,
+    [userId, guildId]
+  );
+
+  if (row.last_rob) {
+    const lastRob = new Date(row.last_rob + 'Z');
+    const nextRob = new Date(lastRob.getTime() + ROB_COOLDOWN_MS);
+    if (Date.now() < nextRob.getTime()) {
+      return { canRob: false, nextRob };
+    }
+  }
+  return { canRob: true };
+}
+
+/**
+ * Record a rob attempt timestamp.
+ */
+function setRobTimestamp(userId, guildId) {
+  db.run(
+    `UPDATE angel_coins SET last_rob = datetime('now') WHERE user_id = ? AND guild_id = ?`,
+    [userId, guildId]
+  );
+  saveDatabase();
+}
+
 module.exports = {
   initDatabase,
   addPoop,
@@ -293,4 +445,13 @@ module.exports = {
   getUserWeeklyCount,
   getAllGuildIds,
   resetAllPoops,
+  // Economy
+  getBalance,
+  addCoins,
+  transferCoins,
+  claimDaily,
+  getCoinLeaderboard,
+  checkRobCooldown,
+  setRobTimestamp,
+  ensureAccount,
 };

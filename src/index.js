@@ -31,7 +31,7 @@ async function main() {
     console.log(`\n🚀 Poop Ranking Bot is online!`);
     console.log(`   Logged in as: ${client.user.tag}`);
     console.log(`   Serving ${client.guilds.cache.size} server(s)`);
-    console.log(`   Commands: +poop, !leaderboard, !monthly, !mystats, !undo, !reset, !poophelp\n`);
+    console.log(`   Commands: +poop, !pooplb, !monthly, !mystats, !undo, !reset`);
 
     // Set bot status
     client.user.setActivity('💩 +poop to log', { type: 'WATCHING' });
