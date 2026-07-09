@@ -48,15 +48,18 @@ function handlePoop(message) {
   const username = message.member?.nickname || message.author.username;
   const guildId = message.guild.id;
 
-  // Log the poop and get the user's total count (1-indexed)
-  const poopNumber = db.addPoop(userId, username, guildId);
+  // Log the poop
+  db.addPoop(userId, username, guildId);
+
+  // Get the user's weekly count (not all-time)
+  const weeklyCount = db.getUserWeeklyCount(userId, guildId);
 
   // Build response
   const funMessage = getRandomPoopMessage(username);
 
   const embed = new MessageEmbed()
     .setColor('#8B4513') // Brown
-    .setDescription(`${funMessage}\n\nThat's poop **#${poopNumber}** overall!`)
+    .setDescription(`${funMessage}\n\nThat's poop **#${weeklyCount}** this week!`)
     .setTimestamp();
 
   message.reply({ embeds: [embed] });
