@@ -1,5 +1,6 @@
 const { MessageEmbed } = require('discord.js');
 const db = require('./database');
+const unicornRace = require('./unicornRace');
 
 // Fun confirmation messages for when someone logs a poop
 const POOP_MESSAGES = [
@@ -649,6 +650,8 @@ function handleHelp(message) {
       '`!coinflip [amount] [heads/tails]` — Flip a coin (2× payout)',
       '`!slots [amount]` — Slot machine (50–5,000 bet)',
       '`!rob [@user]` — Attempt robbery (40% chance, 3hr cooldown)',
+      '`!unicornbet` — Start a unicorn race!',
+      '`!bet [amount] [color]` — Bet on a unicorn during a race',
     ].join('\n'), false)
     .addField('📊 Stats', [
       '`!mystats` — Your poop stats & coin balance',
@@ -700,6 +703,10 @@ function handleCommand(message) {
     handleSlots(message);
   } else if (command === '!rob') {
     handleRob(message);
+  } else if (command === '!unicornbet') {
+    unicornRace.startRace(message);
+  } else if (command === '!bet') {
+    unicornRace.placeBet(message);
   }
   // Help
   else if (command === '!poophelp' || command === '!help') {
