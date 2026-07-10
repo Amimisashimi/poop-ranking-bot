@@ -123,14 +123,14 @@ async function startRace(message) {
     bets: new Map(),    // Map<userId, { amount, unicornColor, username }>
     countdownMsg: null,
     channel: channel,
-    secondsLeft: 15,
+    secondsLeft: 20,
     timer: null,
   };
 
   activeRaces.set(guildId, race);
 
   // Send initial embed
-  const embed = buildRaceEmbed(15);
+  const embed = buildRaceEmbed(20);
   const sentMsg = await channel.send({ embeds: [embed] });
   race.countdownMsg = sentMsg;
 
