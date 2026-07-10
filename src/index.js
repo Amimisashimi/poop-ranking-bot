@@ -34,7 +34,7 @@ async function main() {
     console.log(`   Commands: +poop, !pooplb, !monthly, !mystats, !undo, !reset`);
 
     // Set bot status
-    client.user.setActivity('💩 +poop to log', { type: 'WATCHING' });
+    client.user.setActivity('👼 Angel Bot • !help', { type: 'WATCHING' });
 
     // Schedule monthly announcements
     scheduleMonthlyAnnouncement(client);
