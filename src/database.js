@@ -56,10 +56,18 @@ async function initDatabase() {
       guild_id TEXT NOT NULL,
       balance INTEGER DEFAULT 500,
       last_daily DATETIME DEFAULT NULL,
+      last_pray DATETIME DEFAULT NULL,
       last_rob DATETIME DEFAULT NULL,
       PRIMARY KEY (user_id, guild_id)
     );
   `);
+
+  // Add last_pray column for existing databases that don't have it yet
+  try {
+    db.run(`ALTER TABLE angel_coins ADD COLUMN last_pray DATETIME DEFAULT NULL`);
+  } catch (e) {
+    // Column already exists — ignore
+  }
 
   // Save to persist the schema
   saveDatabase();
@@ -303,6 +311,8 @@ function resetAllPoops(guildId) {
 const STARTING_BALANCE = 500;
 const DAILY_AMOUNT = 500;
 const DAILY_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 hours
+const PRAY_AMOUNT = 50;
+const PRAY_COOLDOWN_MS = 1 * 60 * 60 * 1000; // 1 hour
 const ROB_COOLDOWN_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 /**
@@ -393,6 +403,35 @@ function claimDaily(userId, guildId) {
 }
 
 /**
+ * Claim pray coins (1-hour cooldown, 50 coins).
+ * @returns {{ success: boolean, newBalance?: number, nextClaim?: Date }}
+ */
+function claimPray(userId, guildId) {
+  ensureAccount(userId, guildId);
+  const row = queryOne(
+    `SELECT last_pray FROM angel_coins WHERE user_id = ? AND guild_id = ?`,
+    [userId, guildId]
+  );
+
+  if (row.last_pray) {
+    const lastClaim = new Date(row.last_pray + 'Z'); // stored as UTC
+    const nextClaim = new Date(lastClaim.getTime() + PRAY_COOLDOWN_MS);
+    if (Date.now() < nextClaim.getTime()) {
+      return { success: false, nextClaim };
+    }
+  }
+
+  // Grant coins and update timestamp
+  db.run(
+    `UPDATE angel_coins SET balance = balance + ?, last_pray = datetime('now') WHERE user_id = ? AND guild_id = ?`,
+    [PRAY_AMOUNT, userId, guildId]
+  );
+  saveDatabase();
+  const newBalance = getBalance(userId, guildId);
+  return { success: true, newBalance };
+}
+
+/**
  * Get the Angel Coins leaderboard.
  */
 function getCoinLeaderboard(guildId, limit = 10) {
@@ -450,6 +489,7 @@ module.exports = {
   addCoins,
   transferCoins,
   claimDaily,
+  claimPray,
   getCoinLeaderboard,
   checkRobCooldown,
   setRobTimestamp,

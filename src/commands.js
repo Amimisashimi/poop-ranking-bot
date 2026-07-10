@@ -245,6 +245,33 @@ function handleDaily(message) {
 }
 
 /**
+ * Handle the !pray command.
+ */
+function handlePray(message) {
+  const userId = message.author.id;
+  const guildId = message.guild.id;
+
+  const result = db.claimPray(userId, guildId);
+
+  if (result.success) {
+    const embed = new MessageEmbed()
+      .setColor('#F1C40F') // Gold-yellow
+      .setTitle('🙏 Prayer Answered!')
+      .setDescription(`The angels blessed you with **50** Angel Coins! 🪙\n\nNew balance: **${result.newBalance.toLocaleString()}** Angel Coins`)
+      .setTimestamp();
+    message.reply({ embeds: [embed] });
+  } else {
+    const remaining = result.nextClaim.getTime() - Date.now();
+    const embed = new MessageEmbed()
+      .setColor('#E74C3C') // Red
+      .setTitle('🙏 Prayer on Cooldown')
+      .setDescription(`⏰ The angels need a break!\n\nYou can pray again in **${formatTimeRemaining(remaining)}**`)
+      .setTimestamp();
+    message.reply({ embeds: [embed] });
+  }
+}
+
+/**
  * Handle the !bal / !balance command.
  */
 function handleBalance(message) {
@@ -613,6 +640,7 @@ function handleHelp(message) {
     ].join('\n'), false)
     .addField('👼 Angel Coins', [
       '`!daily` — Claim 500 coins (24hr cooldown)',
+      '`!pray` — Claim 50 coins (1hr cooldown)',
       '`!bal` / `!balance` — Check your coin balance',
       '`!leaderboard` / `!lb` — Richest users',
       '`!transfer [amount] [@user]` — Send coins',
@@ -658,6 +686,8 @@ function handleCommand(message) {
   // Economy commands
   else if (command === '!daily') {
     handleDaily(message);
+  } else if (command === '!pray') {
+    handlePray(message);
   } else if (command === '!bal' || command === '!balance') {
     handleBalance(message);
   } else if (command === '!coinflip' || command === '!cf') {
