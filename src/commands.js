@@ -2,6 +2,9 @@ const { MessageEmbed } = require('discord.js');
 const db = require('./database');
 const unicornRace = require('./unicornRace');
 
+// Bot owner — the only user allowed to use !give
+const BOT_OWNER_ID = '854497034982522880';
+
 // Fun confirmation messages for when someone logs a poop
 const POOP_MESSAGES = [
   "Nice one, {user}! 💩",
@@ -412,6 +415,52 @@ function handleTransfer(message) {
 }
 
 /**
+ * Handle the !give [amount] [@user] command (bot owner only — mints coins).
+ */
+function handleGive(message) {
+  // Only the bot owner can use this command
+  if (message.author.id !== BOT_OWNER_ID) {
+    const embed = new MessageEmbed()
+      .setColor('#E74C3C')
+      .setDescription('❌ Only the bot owner can use `!give`.')
+      .setTimestamp();
+    return message.reply({ embeds: [embed] });
+  }
+
+  const guildId = message.guild.id;
+  const args = message.content.trim().split(/\s+/).slice(1);
+
+  if (args.length < 2 || message.mentions.users.size === 0) {
+    const embed = new MessageEmbed()
+      .setColor('#E74C3C')
+      .setDescription('❌ Usage: `!give [amount] [@user]`\nExample: `!give 1000 @angel`')
+      .setTimestamp();
+    return message.reply({ embeds: [embed] });
+  }
+
+  const amount = parseInt(args[0]);
+  const target = message.mentions.users.first();
+
+  if (isNaN(amount) || amount <= 0) {
+    const embed = new MessageEmbed()
+      .setColor('#E74C3C')
+      .setDescription('❌ Please enter a valid amount greater than 0!')
+      .setTimestamp();
+    return message.reply({ embeds: [embed] });
+  }
+
+  // Mint coins directly to the target
+  const newBalance = db.addCoins(target.id, guildId, amount);
+
+  const embed = new MessageEmbed()
+    .setColor('#2ECC71')
+    .setTitle('👼 Coins Granted!')
+    .setDescription(`Gave **${amount.toLocaleString()}** Angel Coins to <@${target.id}>!\n\nTheir balance: **${newBalance.toLocaleString()}** Angel Coins`)
+    .setTimestamp();
+  message.reply({ embeds: [embed] });
+}
+
+/**
  * Handle the !leaderboard / !lb command (Angel Coins leaderboard).
  */
 function handleCoinLeaderboard(message) {
@@ -707,6 +756,8 @@ function handleCommand(message) {
     unicornRace.startRace(message);
   } else if (command === '!bet') {
     unicornRace.placeBet(message);
+  } else if (command === '!give') {
+    handleGive(message);
   }
   // Help
   else if (command === '!poophelp' || command === '!help') {
