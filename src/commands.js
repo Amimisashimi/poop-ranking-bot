@@ -636,12 +636,12 @@ function handleRob(message) {
   // Set cooldown regardless of outcome
   db.setRobTimestamp(userId, guildId);
 
-  // 40% success rate
-  const success = Math.random() < 0.4;
+  // Tiered heist: random steal % between 5-80%, success chance scales inversely
+  const stealPercent = 0.05 + Math.random() * 0.75; // 5% to 80%
+  const successChance = 0.45 * Math.pow(1 - stealPercent, 1.5);
+  const success = Math.random() < successChance;
 
   if (success) {
-    // Steal 10-30% of target's balance
-    const stealPercent = 0.1 + Math.random() * 0.2;
     const stolenAmount = Math.floor(targetBalance * stealPercent);
 
     db.addCoins(userId, guildId, stolenAmount);
@@ -650,7 +650,7 @@ function handleRob(message) {
     const embed = new MessageEmbed()
       .setColor('#2ECC71')
       .setTitle('🦹 Robbery Successful!')
-      .setDescription(`You stole **${stolenAmount.toLocaleString()}** Angel Coins from <@${target.id}>! 💰\n\nYour balance: **${(robberBalance + stolenAmount).toLocaleString()}** Angel Coins`)
+      .setDescription(`You stole **${stolenAmount.toLocaleString()}** Angel Coins from <@${target.id}>! 💰\n\n🎯 Heist: **${Math.round(stealPercent * 100)}%** of their coins (${Math.round(successChance * 100)}% odds)\n\nYour balance: **${(robberBalance + stolenAmount).toLocaleString()}** Angel Coins`)
       .setTimestamp();
     message.reply({ embeds: [embed] });
   } else {
@@ -663,7 +663,7 @@ function handleRob(message) {
     const embed = new MessageEmbed()
       .setColor('#E74C3C')
       .setTitle('🚔 Robbery Failed!')
-      .setDescription(`You got caught trying to rob <@${target.id}>!\n\nYou paid a **${fineAmount.toLocaleString()}** Angel Coin fine! 💸\n\nYour balance: **${(robberBalance - fineAmount).toLocaleString()}** Angel Coins`)
+      .setDescription(`You got caught trying to rob <@${target.id}>!\n\n🎯 Attempted: **${Math.round(stealPercent * 100)}%** of their coins (${Math.round(successChance * 100)}% odds)\n\nYou paid a **${fineAmount.toLocaleString()}** Angel Coin fine! 💸\n\nYour balance: **${(robberBalance - fineAmount).toLocaleString()}** Angel Coins`)
       .setTimestamp();
     message.reply({ embeds: [embed] });
   }
