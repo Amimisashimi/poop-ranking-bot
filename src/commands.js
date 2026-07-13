@@ -25,12 +25,18 @@ const POOP_MESSAGES = [
 const MEDALS = ['👑', '🥈', '🥉'];
 
 // Slot machine symbols and their weights (lower = rarer)
+// 11 symbols with flat-ish weights → ~25-27% double match rate
 const SLOT_SYMBOLS = [
-  { emoji: '🍒', name: 'cherry', weight: 30 },
-  { emoji: '🍋', name: 'lemon', weight: 25 },
-  { emoji: '🍇', name: 'grape', weight: 20 },
-  { emoji: '⭐', name: 'star', weight: 15 },
-  { emoji: '💎', name: 'diamond', weight: 8 },
+  { emoji: '🍒', name: 'cherry', weight: 10 },
+  { emoji: '🍋', name: 'lemon', weight: 10 },
+  { emoji: '🍇', name: 'grape', weight: 10 },
+  { emoji: '🍊', name: 'orange', weight: 10 },
+  { emoji: '🍉', name: 'melon', weight: 10 },
+  { emoji: '🔔', name: 'bell', weight: 10 },
+  { emoji: '🍀', name: 'clover', weight: 10 },
+  { emoji: '⭐', name: 'star', weight: 9 },
+  { emoji: '🔥', name: 'fire', weight: 8 },
+  { emoji: '💎', name: 'diamond', weight: 5 },
   { emoji: '💩', name: 'poop', weight: 2 },
 ];
 
@@ -543,10 +549,10 @@ function handleSlots(message) {
     multiplier = 10;
     resultText = '🚨💩 **POOP JACKPOT!!!** 💩🚨\nThe legendary triple poop!';
   } else if (reel1 === reel2 && reel2 === reel3) {
-    multiplier = 5;
+    multiplier = 3;
     resultText = '🎉 **TRIPLE MATCH!** 🎉\nIncredible luck!';
   } else if (reel1 === reel2 || reel2 === reel3 || reel1 === reel3) {
-    multiplier = 2;
+    multiplier = 1.5;
     resultText = '✨ **Double match!**\nNot bad!';
   } else {
     multiplier = 0;
@@ -557,7 +563,7 @@ function handleSlots(message) {
   let payout, newBalance, color;
 
   if (multiplier > 0) {
-    payout = amount * multiplier;
+    payout = Math.floor(amount * multiplier);
     // Net gain is payout minus the original bet
     newBalance = db.addCoins(userId, guildId, payout - amount);
     color = '#2ECC71'; // Green
@@ -636,9 +642,9 @@ function handleRob(message) {
   // Set cooldown regardless of outcome
   db.setRobTimestamp(userId, guildId);
 
-  // Tiered heist: random steal % between 5-80%, success chance scales inversely
-  const stealPercent = 0.05 + Math.random() * 0.75; // 5% to 80%
-  const successChance = 0.45 * Math.pow(1 - stealPercent, 1.5);
+  // Tiered heist: random steal % between 5-40%, success chance scales inversely
+  const stealPercent = 0.05 + Math.random() * 0.35; // 5% to 40%
+  const successChance = 0.35 * Math.pow(1 - stealPercent, 1.5);
   const success = Math.random() < successChance;
 
   if (success) {
