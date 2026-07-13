@@ -157,6 +157,14 @@ function handleMyStats(message) {
 
   const stats = db.getUserStats(userId, guildId);
 
+  // Format cooldown timers
+  const prayStatus = stats.prayCooldownRemaining > 0
+    ? `⏰ ${formatTimeRemaining(stats.prayCooldownRemaining)}`
+    : '✅ Ready!';
+  const robStatus = stats.robCooldownRemaining > 0
+    ? `⏰ ${formatTimeRemaining(stats.robCooldownRemaining)}`
+    : '✅ Ready!';
+
   const embed = new MessageEmbed()
     .setColor('#8B4513')
     .setTitle(`💩 ${username}'s Stats`)
@@ -165,6 +173,9 @@ function handleMyStats(message) {
     .addField('🏆 All Time', `**${stats.allTimeCount}** poops`, true)
     .addField('📊 Weekly Rank', `#${stats.weeklyRank}`, true)
     .addField('👼 Angel Coins', `**${stats.coinBalance.toLocaleString()}**`, true)
+    .addField('🚔 Times Robbed', `**${stats.timesRobbed}**`, true)
+    .addField('🙏 Pray', prayStatus, true)
+    .addField('🦹 Rob', robStatus, true)
     .setTimestamp();
 
   message.reply({ embeds: [embed] });
@@ -652,6 +663,7 @@ function handleRob(message) {
 
     db.addCoins(userId, guildId, stolenAmount);
     db.addCoins(target.id, guildId, -stolenAmount);
+    db.incrementTimesRobbed(target.id, guildId);
 
     const embed = new MessageEmbed()
       .setColor('#2ECC71')

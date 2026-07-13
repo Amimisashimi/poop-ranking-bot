@@ -69,6 +69,13 @@ async function initDatabase() {
     // Column already exists — ignore
   }
 
+  // Add times_robbed column for existing databases that don't have it yet
+  try {
+    db.run(`ALTER TABLE angel_coins ADD COLUMN times_robbed INTEGER DEFAULT 0`);
+  } catch (e) {
+    // Column already exists — ignore
+  }
+
   // Save to persist the schema
   saveDatabase();
 
@@ -269,10 +276,32 @@ function getUserStats(userId, guildId) {
   );
   const weeklyRank = rankRows.length + 1;
 
-  // Get coin balance
-  const coinBalance = getBalance(userId, guildId);
+  // Get coin balance and cooldown timestamps
+  ensureAccount(userId, guildId);
+  const accountRow = queryOne(
+    `SELECT balance, last_pray, last_rob, times_robbed FROM angel_coins WHERE user_id = ? AND guild_id = ?`,
+    [userId, guildId]
+  );
+  const coinBalance = accountRow.balance;
+  const timesRobbed = accountRow.times_robbed || 0;
 
-  return { weeklyCount, monthlyCount, allTimeCount, weeklyRank, coinBalance };
+  // Calculate pray cooldown
+  let prayCooldownRemaining = 0;
+  if (accountRow.last_pray) {
+    const lastPray = new Date(accountRow.last_pray + 'Z');
+    const nextPray = new Date(lastPray.getTime() + PRAY_COOLDOWN_MS);
+    prayCooldownRemaining = Math.max(0, nextPray.getTime() - Date.now());
+  }
+
+  // Calculate rob cooldown
+  let robCooldownRemaining = 0;
+  if (accountRow.last_rob) {
+    const lastRob = new Date(accountRow.last_rob + 'Z');
+    const nextRob = new Date(lastRob.getTime() + ROB_COOLDOWN_MS);
+    robCooldownRemaining = Math.max(0, nextRob.getTime() - Date.now());
+  }
+
+  return { weeklyCount, monthlyCount, allTimeCount, weeklyRank, coinBalance, prayCooldownRemaining, robCooldownRemaining, timesRobbed };
 }
 
 /**
@@ -473,6 +502,18 @@ function setRobTimestamp(userId, guildId) {
   saveDatabase();
 }
 
+/**
+ * Increment the times_robbed counter for a victim.
+ */
+function incrementTimesRobbed(userId, guildId) {
+  ensureAccount(userId, guildId);
+  db.run(
+    `UPDATE angel_coins SET times_robbed = COALESCE(times_robbed, 0) + 1 WHERE user_id = ? AND guild_id = ?`,
+    [userId, guildId]
+  );
+  saveDatabase();
+}
+
 module.exports = {
   initDatabase,
   addPoop,
@@ -493,5 +534,6 @@ module.exports = {
   getCoinLeaderboard,
   checkRobCooldown,
   setRobTimestamp,
+  incrementTimesRobbed,
   ensureAccount,
 };
